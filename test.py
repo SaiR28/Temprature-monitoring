@@ -24,7 +24,7 @@ def test_download_csv(url, filename="temperature_log.csv"):
         print("Failed to download CSV file")
 
 if __name__ == "__main__":
-    BASE_URL = "https://sai2836.pythonanywhere.com/"  # Update if running on a different host
+    BASE_URL = "https://temprature-monitoring.onrender.com/"  # Update if running on a different host
     
     print("Starting API tests...")
     

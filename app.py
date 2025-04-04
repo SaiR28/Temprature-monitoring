@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify, send_file, render_template
 import csv
 import os
 from datetime import datetime
+from zoneinfo import ZoneInfo  # For timezone handling
 
 app = Flask(__name__)
 LOG_FILE = "temperature_log.csv"
@@ -24,9 +25,9 @@ def log_temperature():
     if temperature is None:
         return jsonify({"error": "Temperature value is required"}), 400
 
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    # Use IST (Indian Standard Time)
+    timestamp = datetime.now(ZoneInfo("Asia/Kolkata")).strftime('%Y-%m-%d %H:%M:%S')
 
-    # Append data to CSV file
     with open(LOG_FILE, mode='a', newline='') as file:
         writer = csv.writer(file)
         writer.writerow([timestamp, temperature])
