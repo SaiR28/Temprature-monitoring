@@ -67,4 +67,11 @@ def temperature_data():
         return jsonify({"error": str(e)})
 
 if __name__ == '__main__':
+    # Ensure CSV file is initialized only once and only when the app is run directly
+    if not os.path.exists(LOG_FILE):
+        with open(LOG_FILE, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(["timestamp", "temperature"])
+
     app.run(host='0.0.0.0', port=5000, debug=True)
+
