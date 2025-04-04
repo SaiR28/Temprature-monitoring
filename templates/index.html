@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CoolKing Temp Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #1e88e5;
+      --bg: #f9fbfc;
+      --card-bg: #fff;
+      --text: #222;
+      --muted: #888;
+      --radius: 12px;
+      --shadow: 0 6px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+    }
+
+    .layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      background-color: var(--primary);
+      color: white;
+      padding: 30px 20px;
+      width: 220px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .sidebar h1 {
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .sidebar p {
+      font-size: 14px;
+      opacity: 0.8;
+    }
+
+    .main {
+      flex: 1;
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      gap: 30px;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      padding: 20px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .card h2 {
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .card p {
+      font-size: 22px;
+      font-weight: 600;
+    }
+
+    .status {
+      font-weight: 700;
+      font-size: 18px;
+    }
+
+    .online {
+      color: #4caf50;
+    }
+
+    .offline {
+      color: #f44336;
+    }
+
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .btn {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      font-size: 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    .btn:hover {
+      background-color: #1667b8;
+    }
+
+    .chart-container {
+      background-color: white;
+      padding: 20px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    footer {
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: auto;
+    }
+
+    @media (max-width: 768px) {
+      .layout {
+        flex-direction: column;
+      }
+
+      .sidebar {
+        width: 100%;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px;
+      }
+
+      .main {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div>
+        <h1>CoolKing Dashboard</h1>
+        <p>Temperature Logger</p>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="cards">
+        <div class="card">
+          <h2>Latest Temp</h2>
+          <p id="temperature">--</p>
+        </div>
+        <div class="card">
+          <h2>Timestamp</h2>
+          <p id="timestamp">--</p>
+        </div>
+        <div class="card">
+          <h2>Min Temp</h2>
+          <p id="min_temp">--</p>
+        </div>
+        <div class="card">
+          <h2>Max Temp</h2>
+          <p id="max_temp">--</p>
+        </div>
+        <div class="card">
+          <h2>Status</h2>
+          <p class="status" id="status">Checking...</p>
+        </div>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn" onclick="manualRefresh()">🔄 Refresh</button>
+        <button class="btn" onclick="window.location.href='/download'">⬇️ Download CSV</button>
+      </div>
+
+      <div class="chart-container">
+        <canvas id="tempChart" height="300"></canvas>
+      </div>
+
+      <footer>
+        &copy; 2023 CoolKing Engineering | Precision Monitoring Solutions
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    const ctx = document.getElementById('tempChart').getContext('2d');
+    let chart;
+    const allData = { timestamps: [], temperatures: [] };
+
+    function manualRefresh() {
+      fetchData();
+    }
+
+    async function fetchData() {
+      try {
+        const [lastEntryRes, historyRes] = await Promise.all([
+          fetch('/last_entry'),
+          fetch('/temperature_data')
+        ]);
+        const lastEntry = await lastEntryRes.json();
+        const history = await historyRes.json();
+        const now = new Date();
+
+        if (!lastEntry.error) {
+          document.getElementById("temperature").textContent = lastEntry.temperature + '°C';
+          document.getElementById("timestamp").textContent = new Date(lastEntry.timestamp).toLocaleString();
+
+          const lastTime = new Date(lastEntry.timestamp);
+          const diffMinutes = (now - lastTime) / (1000 * 60);
+
+          document.getElementById("status").textContent = diffMinutes <= 5 ? "🟢 Online" : "🔴 Offline";
+          document.getElementById("status").className = diffMinutes <= 5 ? "status online" : "status offline";
+        }
+
+        if (!history.error) {
+          document.getElementById("min_temp").textContent = history.min_temp + '°C';
+          document.getElementById("max_temp").textContent = history.max_temp + '°C';
+
+          allData.timestamps = history.data.map(entry => entry.timestamp);
+          allData.temperatures = history.data.map(entry => entry.temperature);
+          updateChart(allData.timestamps, allData.temperatures);
+        }
+
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        document.getElementById("status").textContent = "🔴 Offline";
+        document.getElementById("status").className = "status offline";
+      }
+    }
+
+    function updateChart(timestamps, temperatures) {
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: timestamps,
+          datasets: [{
+            label: 'Temperature (°C)',
+            data: temperatures,
+            borderColor: '#1e88e5',
+            backgroundColor: 'rgba(30, 136, 229, 0.1)',
+            tension: 0.3,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: true }
+          },
+          scales: {
+            x: { title: { display: true, text: 'Timestamp' }},
+            y: { title: { display: true, text: 'Temp (°C)' }}
+          }
+        }
+      });
+    }
+
+    fetchData();
+  </script>
+</body>
+</html>
